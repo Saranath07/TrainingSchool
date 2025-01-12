@@ -1,0 +1,505 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en" class="darkModeSwitch"> 
+<!-- ^ We'll use JavaScript to toggle the 'dark' class on this <html> element. -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Training School Web App</title>
+
+  <!-- Tailwind CSS via CDN for quick usage -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Axios for HTTP requests -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+  
+  <!-- 
+    Optional: If you have a Tailwind config, ensure "darkMode: 'class'" is enabled there 
+    so that the dark: classes work when the .dark class is toggled.
+  -->
+</head>
+<body 
+  class="
+    bg-gradient-to-br 
+    from-red-200 via-purple-200 to-yellow-200 
+    dark:from-red-900 dark:via-purple-900 dark:to-yellow-900 
+    min-h-screen
+    transition-colors
+    duration-500
+    font-sans
+  "
+>
+  <!-- Container -->
+  <div class="container mx-auto px-4 py-6 md:py-10">
+    
+    <!-- Header with Dark Mode Toggle -->
+    <header class="mb-12 flex justify-between items-center">
+      <div class="text-center w-full">
+        <h1 class="text-4xl font-bold text-gray-800 dark:text-white mb-2">
+          Training School Web App
+        </h1>
+        <p class="text-lg text-gray-600 dark:text-gray-300">
+          Manage and Deploy Machine Learning Models Seamlessly
+        </p>
+      </div>
+
+      <!-- Dark Mode Toggle Button -->
+      <button
+        id="themeToggle"
+        class="ml-4 p-2 rounded-full bg-gray-200 text-gray-800
+               hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 
+               dark:hover:bg-gray-600 transition-colors duration-300
+               shadow"
+        title="Toggle Dark Mode"
+      >
+        <!-- Simple icon using Heroicons or any icon library -->
+        <svg 
+          class="w-6 h-6" 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24" 
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path 
+            stroke-linecap="round" 
+            stroke-linejoin="round" 
+            stroke-width="2" 
+            d="M20.354 15.354A9 9 0 1112.707 3.05a.997.997 0 00.965 1.163A7 7 0 1019 11a.997.997 0 001.163.965 9.004 9.004 0 01.191 3.389z"
+          ></path>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Training Section -->
+    <section
+      class="
+        bg-white dark:bg-gray-800 
+        rounded-lg 
+        shadow-lg 
+        p-6 
+        mb-10 
+        mx-auto 
+        max-w-3xl
+        transition-colors 
+        duration-500
+      "
+    >
+      <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+        <svg
+          class="w-6 h-6 text-blue-500 mr-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 14l9-5-9-5-9 5 9 5zm0 7l9-5-9-5-9 5 9 5z"
+          ></path>
+        </svg>
+        Train New Model
+      </h2>
+
+      <form id="uploadForm" class="space-y-6" enctype="multipart/form-data">
+        <!-- Training Data (CSV) -->
+        <div>
+          <label
+            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            for="fileInput"
+          >
+            Training Data (CSV)
+          </label>
+          <input
+            id="fileInput"
+            type="file"
+            name="file"
+            accept=".csv"
+            class="
+              block w-full text-sm text-gray-700 dark:text-gray-200 
+              border border-gray-300 dark:border-gray-600 
+              rounded-md
+              file:mr-4 file:py-2 file:px-4 file:border-0 
+              file:text-sm file:font-semibold
+              file:bg-blue-100 file:text-blue-700 
+              hover:file:bg-blue-200 
+              focus:outline-none 
+              focus:ring-2 focus:ring-blue-400 
+              focus:border-transparent 
+              dark:focus:ring-blue-700
+              transition-colors
+              duration-300
+            "
+            required
+          />
+        </div>
+
+        <!-- Task Description -->
+        <div>
+          <label
+            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            for="taskDescription"
+          >
+            Task Description
+          </label>
+          <textarea
+            id="taskDescription"
+            name="task_description"
+            class="
+              w-full rounded-md 
+              border border-gray-300 dark:border-gray-600 
+              p-2
+              shadow-sm
+              focus:outline-none 
+              focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-700
+              focus:border-transparent 
+              transition-all
+              duration-300
+              bg-white dark:bg-gray-700
+              text-gray-800 dark:text-gray-100
+            "
+            rows="3"
+            required
+          ></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          class="
+            inline-flex items-center 
+            bg-gradient-to-r from-blue-600 to-blue-700 text-white 
+            dark:from-blue-700 dark:to-blue-800
+            px-6 py-2 rounded-md font-medium
+            hover:from-blue-700 hover:to-blue-800 
+            dark:hover:from-blue-800 dark:hover:to-blue-900
+            focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
+            transition-colors 
+            duration-300
+            shadow-md
+          "
+        >
+          Train Model
+        </button>
+      </form>
+
+      <!-- Training Status -->
+      <div id="trainingStatus" class="mt-4 hidden">
+        <div class="animate-pulse text-blue-500 font-medium">
+          Training in progress...
+        </div>
+      </div>
+    </section>
+
+    <!-- Models Section -->
+    <section
+      class="
+        bg-white dark:bg-gray-800 
+        rounded-lg shadow-lg 
+        p-6 
+        mx-auto 
+        max-w-4xl
+        transition-colors
+        duration-500
+      "
+    >
+      <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
+        <svg
+          class="w-6 h-6 text-green-500 mr-2"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M11 17l-5-5m0 0l5-5m-5 5h12"
+          ></path>
+        </svg>
+        Trained Models
+      </h2>
+      <div id="modelsList" class="space-y-4">
+        <!-- Models will be listed here dynamically -->
+      </div>
+    </section>
+  </div>
+
+  <!-- Prediction Modal -->
+  <div id="predictionModal"
+       class="fixed inset-0 bg-gray-700 bg-opacity-50 hidden z-50 transition-opacity">
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+      <div
+        class="
+          bg-white dark:bg-gray-800 
+          rounded-lg 
+          shadow-xl 
+          p-6 
+          w-full 
+          max-w-lg 
+          relative
+          transition-colors 
+          duration-500
+        "
+      >
+        <!-- Close Button (top-right) -->
+        <button
+          type="button"
+          onclick="closePredictionModal()"
+          class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 
+                 dark:text-gray-300 dark:hover:text-gray-100 
+                 focus:outline-none"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M10 8.586L3.293 1.879 1.879 3.293l6.707 6.707-6.707 6.707 
+                 1.414 1.414 6.707-6.707 6.707 6.707 1.414-1.414 
+                 -6.707-6.707 6.707-6.707L16.414 1.88 
+                 10 8.586z"
+              clip-rule="evenodd"
+            ></path>
+          </svg>
+        </button>
+
+        <!-- Modal Title -->
+        <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100 flex items-center">
+          <svg
+            class="w-6 h-6 text-blue-500 mr-2"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M16 7l-6 6m0 0l-6-6m6 6V3"
+            ></path>
+          </svg>
+          Make Predictions
+        </h3>
+
+        <!-- Prediction Form -->
+        <form id="predictionForm" class="space-y-6">
+          <input
+            type="hidden"
+            name="model_name"
+            id="selectedModel"
+          />
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              for="testDataInput"
+            >
+              Test Data (CSV)
+            </label>
+            <input
+              id="testDataInput"
+              type="file"
+              name="file"
+              accept=".csv"
+              class="
+                block w-full text-sm 
+                text-gray-700 dark:text-gray-200 
+                border border-gray-300 dark:border-gray-600 
+                rounded-md
+                file:mr-4 file:py-2 file:px-4 file:border-0 
+                file:text-sm file:font-semibold
+                file:bg-green-100 file:text-green-700
+                hover:file:bg-green-200
+                focus:outline-none 
+                focus:ring-2 focus:ring-green-400 dark:focus:ring-green-700
+                focus:border-transparent 
+                transition-all
+                duration-300
+                shadow-sm
+                bg-white dark:bg-gray-700
+              "
+              required
+            />
+          </div>
+          <div class="flex justify-end space-x-2">
+            <button
+              type="button"
+              onclick="closePredictionModal()"
+              class="
+                bg-gray-300 dark:bg-gray-700 
+                text-gray-700 dark:text-gray-100 
+                px-4 py-2 rounded-md
+                hover:bg-gray-400 dark:hover:bg-gray-600
+                focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
+                transition-colors
+                duration-300
+              "
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="
+                bg-gradient-to-r from-green-600 to-green-700 text-white 
+                dark:from-green-700 dark:to-green-800 
+                px-5 py-2 rounded-md font-medium 
+                hover:from-green-700 hover:to-green-800 
+                dark:hover:from-green-800 dark:hover:to-green-900
+                focus:ring-2 focus:ring-green-500 focus:ring-offset-2
+                transition-colors
+                duration-300
+                shadow-md
+              "
+            >
+              Predict
+            </button>
+          </div>
+        </form>
+
+        <!-- Predictions Output -->
+        <div id="predictions" class="mt-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Script -->
+  <script>
+    // -- DARK MODE TOGGLE ---
+    const themeToggle = document.getElementById("themeToggle");
+    themeToggle.addEventListener("click", () => {
+      document.documentElement.classList.toggle("dark");
+    });
+
+    // Load models on page load
+    document.addEventListener("DOMContentLoaded", loadModels);
+
+    // Handle model training
+    document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const statusDiv = document.getElementById("trainingStatus");
+
+      try {
+        statusDiv.classList.remove("hidden");
+        await axios.post("/upload", formData);
+        alert("Model trained successfully!");
+        loadModels();
+      } catch (error) {
+        alert("Error training model: " + (error.response?.data?.error || error.message));
+      } finally {
+        statusDiv.classList.add("hidden");
+      }
+    });
+
+    // Load trained models
+    async function loadModels() {
+      try {
+        const response = await axios.get("/models");
+        const modelsList = document.getElementById("modelsList");
+        modelsList.innerHTML = response.data
+          .map((model) => {
+            const modelNameNoExt = model.filename.split(".")[0];
+            return `
+              <div 
+                class="
+                  border rounded-md p-4 bg-gray-50 dark:bg-gray-700 
+                  shadow-sm flex flex-col gap-1 
+                  sm:flex-row sm:justify-between sm:items-center 
+                  transition-colors duration-300
+                "
+              >
+                <div>
+                  <h3 class="font-medium text-gray-800 dark:text-gray-200 text-lg">
+                    ${model.filename}
+                  </h3>
+                  <p class="text-sm text-gray-600 dark:text-gray-300">
+                    Task: ${model.task_description}
+                  </p>
+                  <p class="text-sm text-gray-600 dark:text-gray-300">
+                    Best Model: ${model.best_model.model_type}
+                  </p>
+                </div>
+                <div>
+                  <button
+                    onclick="openPredictionModal('${modelNameNoExt}')"
+                    class="
+                      mt-2 bg-gradient-to-r from-green-500 to-green-600 
+                      text-white px-4 py-2 rounded-md text-sm 
+                      hover:from-green-600 hover:to-green-700 
+                      dark:from-green-600 dark:to-green-700 
+                      dark:hover:from-green-700 dark:hover:to-green-800
+                      transition-colors
+                      shadow-sm
+                    "
+                  >
+                    Make Predictions
+                  </button>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      } catch (error) {
+        console.error("Error loading models:", error);
+      }
+    }
+
+    // Handle predictions
+    function openPredictionModal(modelName) {
+      document.getElementById("selectedModel").value = modelName;
+      document.getElementById("predictionModal").classList.remove("hidden");
+    }
+
+    function closePredictionModal() {
+      document.getElementById("predictionModal").classList.add("hidden");
+      document.getElementById("predictions").innerHTML = "";
+    }
+
+    // Overwrite the original event listener for the prediction form
+    // to handle the blob response and file download
+    document.getElementById("predictionForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+
+      try {
+        // Request the file as a blob
+        const response = await axios.post("/predict", formData, { responseType: "blob" });
+
+        // Create a URL for the blob data
+        const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+
+        // Create an anchor element and set the download attribute
+        const link = document.createElement("a");
+        link.href = blobUrl;
+
+        // Extract filename from Content-Disposition header if available
+        const disposition = response.headers["content-disposition"];
+        let filename = "download.csv"; // fallback filename
+        if (disposition && disposition.indexOf("filename=") !== -1) {
+          const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+          const matches = filenameRegex.exec(disposition);
+          if (matches !== null && matches[1]) {
+            filename = matches[1].replace(/['"]/g, "");
+          }
+        }
+        link.setAttribute("download", filename);
+
+        // Append the link to the document and trigger a click to download
+        document.body.appendChild(link);
+        link.click();
+
+        // Clean up: remove the link and revoke the object URL
+        link.remove();
+        window.URL.revokeObjectURL(blobUrl);
+      } catch (error) {
+        alert("Error making predictions: " + (error.response?.data?.error || error.message));
+      }
+    });
+  </script>
+</body>
+</html>

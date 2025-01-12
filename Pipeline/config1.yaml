@@ -1,0 +1,50 @@
+scalers:
+  standard:
+    name: StandardScaler
+    params: {}
+
+preprocessing:
+  missing_values:
+    strategy: none
+  categorical:
+    strategy: none
+  feature_selection:
+    enabled: false
+    method: none
+    params: {}
+
+models:
+  classification:
+    logistic_regression:
+      name: LogisticRegression
+      params: {}
+
+deep_learning:
+  lstm:
+    enabled: true
+    params:
+      units: [32, 16]
+      dropout_rates: [0.2, 0.1]
+      optimizer: adam
+      batch_size: 32
+      epochs: 100
+  
+  transformer:
+    enabled: true
+    params:
+      num_heads: 8
+      key_dim: 16
+      dropout_rate: 0.1
+      dense_units: [32, 16]
+      optimizer: adam
+      batch_size: 32
+      epochs: 100
+
+evaluation:
+  cv_folds: 5
+  stratify: false
+  metrics:
+    classification: ['accuracy', 'f1-score', 'precision', 'recall']
+
+sequence_data:
+  enabled: true

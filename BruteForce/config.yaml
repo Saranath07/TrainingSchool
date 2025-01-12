@@ -1,0 +1,75 @@
+scalers:
+  standard:
+    name: StandardScaler
+    params: {}
+
+models:
+  regression:
+    linear:
+      name: LinearRegression
+      params: {}
+    ridge:
+      name: Ridge
+      params:
+        alpha: 1.0
+    rf:
+      name: RandomForestRegressor
+      params:
+        n_estimators: 100
+        max_depth: 10
+    xgb:
+      name: XGBRegressor
+      params:
+        n_estimators: 100
+        max_depth: 6
+    svr:
+      name: SVR
+      params:
+        kernel: 'rbf'
+        C: 1.0
+    mlp:
+      name: MLPRegressor
+      params:
+        hidden_layer_sizes: [100, 50]
+        max_iter: 1000
+    
+  classification:
+    logistic:
+      name: LogisticRegression
+      params:
+        max_iter: 1000
+    rf:
+      name: RandomForestClassifier
+      params:
+        n_estimators: 100
+        max_depth: 10
+
+deep_learning:
+  lstm:
+    enabled: true
+    params:
+      units: [100, 100]
+      dropout_rates: [0.5, 0.5]
+      optimizer: 'adam'
+      batch_size: 32
+      epochs: 10
+  
+  transformer:
+    enabled: true
+    params:
+      num_heads: 2
+      key_dim: 64
+      dropout_rate: 0.1
+      dense_units: [64, 32]
+      optimizer: 'adam'
+      batch_size: 32
+      epochs: 10
+
+evaluation:
+  cv_folds: 5
+  metrics:
+    regression: ['neg_mean_squared_error', 'r2']
+    classification: ['accuracy', 'f1']
+
+sequence_data:
+  enabled: True

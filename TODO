@@ -1,0 +1,18 @@
+---------------------------------------------Completed-----------------------------------------------------
+1. Make a pipeline for the Training School ✅
+2. Do a brute force approach ✅
+3. Make use of tradional AI (Brute Force, A* and Simulated Annealing) ✅
+4. Data --> Script --> Model  ✅
+-----------------------------------------------------------------------------------------------------------
+
+
+
+
+
+5. Data + Prompt --> LLM --> config
+6. Data + Prompt --> LLM --> config --> scipt --> model --> LLM --> script (recursive)
+7. Integrate tradional methods (like knowledge base)
+
+
+
+Instead of LLM we can train a model for this

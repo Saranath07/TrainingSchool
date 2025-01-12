@@ -51,6 +51,7 @@ class TrainingSchool:
             self.config = yaml.safe_load(file)
         
         self.scalers = self._initialize_scalers()
+        self.models = {}  # Store all models and scalers here
         self.regression_models = {}
         self.classification_models = {}
         self.best_model = None
@@ -224,6 +225,8 @@ class TrainingSchool:
         Fit function for TrainingSchoolV2 with proper classification handling
         """
         # Detect task type and initialize appropriate models
+        self.X_train = X
+        self.y_train = y
         self.task_type = self._detect_task_type(y)
         print(f"Detected task type: {self.task_type}")
         
@@ -252,6 +255,9 @@ class TrainingSchool:
                         score = self._evaluate_model(model, X_scaled, y)
                         print(f"Score for {model_name} with {scaler_name} scaler: {score:.4f}")
                         
+                        # Save models and scalers
+                        self.models[model_name] = {'model': model, 'scaler': scaler}
+                        
                         if score > best_score:
                             best_score = score
                             best_model = model
@@ -275,6 +281,9 @@ class TrainingSchool:
                             lstm_score = self._evaluate_model(lstm_model, X_reshaped, y, is_deep_learning=True)
                             print(f"Score for LSTM with {scaler_name} scaler: {lstm_score:.4f}")
                             
+                            # Save LSTM model
+                            self.models['lstm'] = {'model': lstm_model, 'scaler': scaler}
+                            
                             if lstm_score > best_score:
                                 best_score = lstm_score
                                 best_model = lstm_model
@@ -295,6 +304,9 @@ class TrainingSchool:
                             )
                             print(f"Score for Transformer with {scaler_name} scaler: {transformer_score:.4f}")
                             
+                            # Save Transformer model
+                            self.models['transformer'] = {'model': transformer_model, 'scaler': scaler}
+                            
                             if transformer_score > best_score:
                                 best_score = transformer_score
                                 best_model = transformer_model
@@ -305,6 +317,7 @@ class TrainingSchool:
                             
             except Exception as e:
                 print(f"Error with {scaler_name} scaler: {str(e)}")
+
         
         # Store best results
         self.best_score = best_score
@@ -341,6 +354,44 @@ class TrainingSchool:
             self.best_model.fit(X_scaled, y)
         
         return self
+    def get_cv_scores(self, model_name):
+        """
+        Compute cross-validation scores for a given model.
+        Args:
+            model_name (str): The name of the model for which CV scores are computed.
+        Returns:
+            dict: A dictionary with cross-validation scores for the model.
+        """
+        try:
+            if model_name not in self.models:
+                raise ValueError(f"Model '{model_name}' not found in trained models.")
+            
+            model_info = self.models[model_name]
+            model = model_info['model']
+            scaler = model_info['scaler']
+            
+            # Scale the data
+            X_scaled = scaler.transform(self.X_train)
+            
+            # Use cross-validation to compute scores
+            metrics = self.config['evaluation']['metrics']
+            cv_folds = self.config['evaluation']['cv_folds']
+            
+            if self.task_type == 'regression':
+                scoring_metric = metrics['regression'][0]  # e.g., 'neg_mean_squared_error'
+            else:
+                scoring_metric = metrics['classification'][0]  # e.g., 'accuracy'
+            
+            scores = cross_val_score(model, X_scaled, self.y_train, cv=cv_folds, scoring=scoring_metric)
+            return {
+                'mean': np.mean(scores),
+                'std': np.std(scores),
+                'scores': scores.tolist()
+            }
+        
+        except Exception as e:
+            print(f"Error computing CV scores for model '{model_name}': {str(e)}")
+            return None
     def predict(self, X):
         """Make predictions using the best model"""
         X_scaled = self.best_scaler.transform(X)

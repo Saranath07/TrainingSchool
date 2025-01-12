@@ -1,1 +1,0 @@
-{"filename": "example_data.csv", "task_description": "This is a binary classification problem", "best_model": {"model_type": "LogisticRegression", "score": 0.9800000000000001, "model_path": "example_data_model.joblib"}, "feature_columns": ["feature_0", "feature_1", "feature_2", "feature_3", "feature_4"]}

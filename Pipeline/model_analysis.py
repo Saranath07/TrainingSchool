@@ -30,9 +30,14 @@ class ModelAnalysisLLM(GenerateConfigLLM):
             
             if task_type == "classification":
                 # Extract classification metrics
+
+                y_pred = (model_results['y_pred'] > 0.5).astype(int)
+               
+
+
                 report = classification_report(
                     model_results['y_true'],
-                    model_results['y_pred'],
+                    y_pred,
                     output_dict=True
                 )
                 metrics = {
@@ -52,15 +57,15 @@ class ModelAnalysisLLM(GenerateConfigLLM):
                     'mae': float(np.mean(np.abs(np.array(model_results['y_true']) - np.array(model_results['y_pred']))))
                 }
             
-            # Add cross-validation scores if available
-            if 'cv_scores' in model_results:
-                cv_scores = model_results['cv_scores']
-                if isinstance(cv_scores, dict):
-                    metrics['cv_scores'] = {
-                        'mean': float(cv_scores.get('mean', 0)),
-                        'std': float(cv_scores.get('std', 0)),
-                        'scores': list(cv_scores.get('scores', []))  # Convert to list
-                    }
+            # # Add cross-validation scores if available
+            # if 'cv_scores' in model_results:
+            #     cv_scores = model_results['cv_scores']
+            #     if isinstance(cv_scores, dict):
+            #         metrics['cv_scores'] = {
+            #             'mean': float(cv_scores.get('mean', 0)),
+            #             'std': float(cv_scores.get('std', 0)),
+            #             'scores': list(cv_scores.get('scores', []))  # Convert to list
+            #         }
             
             # Create performance metrics dictionary
             performance_dict = {
@@ -92,7 +97,8 @@ class ModelAnalysisLLM(GenerateConfigLLM):
                               analysis: Dict,
                               initial_results: Dict[str, Any],
                               task_type: str,
-                              available_models: List[str]) -> str:
+                              available_models: List[str],
+                              task_requirements: str) -> str:
         """Generate refined configuration based on initial model performance"""
         
         # Analyze model performance
@@ -113,7 +119,11 @@ class ModelAnalysisLLM(GenerateConfigLLM):
             for metric in performance_metrics
         }
 
-        template = '''You are an expert ML engineer analyzing model performance and suggesting improvements. Based on the initial results and data characteristics, recommend an optimized configuration.
+        template = '''You are an expert ML engineer analyzing model performance and suggesting improvements. Based on the initial results and data characteristics, recommend an optimized configuration. 
+        Give weightage to the best model.
+
+Requirements:
+{task_requirements}
 
 Initial Performance Results:
 {performance_summary}
@@ -123,6 +133,8 @@ Dataset Characteristics:
 
 Available Models:
 {available_models}
+
+
 
 Analysis Objectives:
 1. Identify best performing models and their strengths
@@ -148,14 +160,14 @@ preprocessing:
     params: {{}}
 
 models:
-  <task_type>:
+  <task_type>: # only classification or regression.
     <model_name>:
       name: <ModelClass>
       params: {{}}  # For MLP use PythonLists for hidden_layer_sizes
 
 deep_learning:
   lstm:
-    enabled: true
+    enabled: true # if data is sequential based on requirements
     params:
       units: <PythonList>[]
       dropout_rates: <PythonList>[]
@@ -190,8 +202,8 @@ Provide only the YAML configuration without explanations without any markdown. E
         prompt = template.format(
             performance_summary=str(performance_summary),
             data_characteristics=self._analyze_data_characteristics(analysis),
-            available_models=available_models
-        )
+            available_models=available_models,
+            task_requirements=task_requirements)
 
         response = self.invoke(prompt)
         return response.content

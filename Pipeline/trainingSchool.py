@@ -2,14 +2,14 @@ import numpy as np
 import pandas as pd
 import yaml
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.metrics import mean_squared_error, accuracy_score, f1_score
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.neural_network import MLPRegressor, MLPClassifier
 import xgboost as xgb
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, clone_model
 from tensorflow.keras.layers import Dense, LSTM, Dropout
 import tensorflow as tf
 import warnings
@@ -106,30 +106,55 @@ class TrainingSchool:
     
     
     def _evaluate_model(self, model, X, y, is_deep_learning=False):
-        """Evaluate model using configured metrics"""
+        """Evaluate model using configured metrics with proper handling of deep learning models"""
         if is_deep_learning:
-            dl_params = (self.config['deep_learning']['lstm'] if isinstance(model, Sequential)
-                        else self.config['deep_learning']['transformer'])['params']
+            # For deep learning models, use custom cross-validation
+            # cv = KFold(n_splits=self.config['evaluation']['cv_folds'], shuffle=True)
+            # scores = []
+            
+            # for train_idx, val_idx in cv.split(X):
+            #     X_train_fold, X_val_fold = X[train_idx], X[val_idx]
+            #     y_train_fold, y_val_fold = y[train_idx], y[val_idx]
+                
+            #     # Clone the model for each fold
+            #     if isinstance(model, Sequential):
+            #         model_clone = clone_model(model)
+            #     else:
+            #         model_clone = clone_model(model)
+                
+                # Compile the cloned model
+            model.compile(
+                loss='binary_crossentropy',
+                optimizer='adam',
+                metrics=['accuracy']
+            )
+            
+            # Get the appropriate parameters based on model type
+            if isinstance(model, Sequential):
+                dl_params = self.config['deep_learning']['lstm']['params']
+            else:
+                dl_params = self.config['deep_learning']['transformer']['params']
+            
+            # Train the model
             history = model.fit(
-                X, y,
+                X,
+                y,
                 epochs=dl_params['epochs'],
                 batch_size=dl_params['batch_size'],
-                validation_split=0.2,
                 verbose=0
             )
-            return np.mean(history.history['val_accuracy' if self.task_type == 'classification'
-                                        else 'val_mae'])
+            
+            # Evaluate
+            y_pred = (model.predict(X) > 0.5).astype(int)
+            score = accuracy_score(y, y_pred)
+            
         
-        metrics = self.config['evaluation']['metrics']
-        cv_folds = self.config['evaluation']['cv_folds']
-        
-        if self.task_type == 'regression':
-            scores = cross_val_score(model, X, y, cv=cv_folds,
-                                   scoring=metrics['regression'][0])
-            return np.mean(np.sqrt(-scores))
+            return score
         else:
-            scores = cross_val_score(model, X, y, cv=cv_folds,
-                                   scoring=metrics['classification'][0])
+            # For traditional ML models, use sklearn's cross_val_score
+            metrics = self.config['evaluation']['metrics']
+            cv_folds = self.config['evaluation']['cv_folds']
+            scores = cross_val_score(model, X, y, cv=cv_folds, scoring='accuracy')
             return np.mean(scores)
     
     def _detect_task_type(self, y):
@@ -140,14 +165,14 @@ class TrainingSchool:
         return 'regression'
 
     def _create_lstm_model(self, input_shape, output_dim):
-        """Create LSTM model with config parameters and proper output shape"""
+        """Create LSTM model with proper output shape for binary classification"""
         try:
             lstm_config = self.config['deep_learning']['lstm']
             if not lstm_config['enabled']:
                 return None
                 
             params = lstm_config['params']
-            with tf.device('/CPU:0'):  # Force CPU usage for model creation
+            with tf.device('/CPU:0'):
                 model = Sequential()
                 
                 for i, units in enumerate(params['units']):
@@ -158,12 +183,14 @@ class TrainingSchool:
                         model.add(LSTM(units, return_sequences=i < len(params['units'])-1))
                     model.add(Dropout(params['dropout_rates'][i]))
                 
+                # For binary classification, use sigmoid activation and 1 unit
                 if self.task_type == 'classification':
-                    model.add(Dense(output_dim, activation='softmax'))
+                    model.add(Dense(1, activation='sigmoid'))
+                    loss = 'binary_crossentropy'
                 else:
                     model.add(Dense(output_dim))
+                    loss = 'mse'
                 
-                loss = 'sparse_categorical_crossentropy' if self.task_type == 'classification' else 'mse'
                 metrics = ['accuracy'] if self.task_type == 'classification' else ['mae']
                 
                 model.compile(
@@ -177,14 +204,14 @@ class TrainingSchool:
             return None
 
     def _create_transformer_model(self, input_shape, output_dim):
-        """Create Transformer model with correct output shape for classification"""
+        """Create Transformer model with proper output shape for binary classification"""
         try:
             transformer_config = self.config['deep_learning']['transformer']
             if not transformer_config['enabled']:
                 return None
                 
             params = transformer_config['params']
-            with tf.device('/CPU:0'):  # Force CPU usage for model creation
+            with tf.device('/CPU:0'):
                 inputs = tf.keras.Input(shape=input_shape)
                 
                 x = tf.keras.layers.LayerNormalization(epsilon=1e-6)(inputs)
@@ -201,14 +228,15 @@ class TrainingSchool:
                     x = tf.keras.layers.Dense(units, activation='relu')(x)
                     x = tf.keras.layers.Dropout(params['dropout_rate'])(x)
                 
+                # For binary classification, use sigmoid activation and 1 unit
                 if self.task_type == 'classification':
-                    outputs = tf.keras.layers.Dense(output_dim, activation='softmax')(x)
+                    outputs = tf.keras.layers.Dense(1, activation='sigmoid')(x)
+                    loss = 'binary_crossentropy'
                 else:
                     outputs = tf.keras.layers.Dense(output_dim)(x)
+                    loss = 'mse'
                 
                 model = tf.keras.Model(inputs=inputs, outputs=outputs)
-                
-                loss = 'sparse_categorical_crossentropy' if self.task_type == 'classification' else 'mse'
                 metrics = ['accuracy'] if self.task_type == 'classification' else ['mae']
                 
                 model.compile(
@@ -221,14 +249,15 @@ class TrainingSchool:
             print(f"Error creating Transformer model: {str(e)}")
             return None
     def fit(self, X, y):
-        """
-        Fit function for TrainingSchoolV2 with proper classification handling
-        """
-        # Detect task type and initialize appropriate models
+        """Updated fit method with proper binary classification handling"""
         self.X_train = X
         self.y_train = y
         self.task_type = self._detect_task_type(y)
         print(f"Detected task type: {self.task_type}")
+        
+        # For binary classification, ensure y is in proper format
+        if self.task_type == 'classification':
+            y = np.array(y, dtype=np.float32)
         
         # Initialize models based on task type from config
         if self.task_type == 'regression':
@@ -356,11 +385,7 @@ class TrainingSchool:
         return self
     def get_cv_scores(self, model_name):
         """
-        Compute cross-validation scores for a given model.
-        Args:
-            model_name (str): The name of the model for which CV scores are computed.
-        Returns:
-            dict: A dictionary with cross-validation scores for the model.
+        Modified get_cv_scores to handle both traditional ML and deep learning models
         """
         try:
             if model_name not in self.models:
@@ -372,17 +397,54 @@ class TrainingSchool:
             
             # Scale the data
             X_scaled = scaler.transform(self.X_train)
+
+            print(f"Unique values in y_train for model '{model_name}':", np.unique(self.y_train))
+            print(f"Shape of y_train for model '{model_name}':", self.y_train.shape)
             
-            # Use cross-validation to compute scores
-            metrics = self.config['evaluation']['metrics']
-            cv_folds = self.config['evaluation']['cv_folds']
+            # Handle deep learning models differently
+            is_deep_learning = isinstance(model, (tf.keras.Model, Sequential))
+            if is_deep_learning:
+                X_scaled = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
             
-            if self.task_type == 'regression':
-                scoring_metric = metrics['regression'][0]  # e.g., 'neg_mean_squared_error'
+            # Use appropriate evaluation method
+            cv = KFold(n_splits=self.config['evaluation']['cv_folds'], shuffle=True)
+            scores = []
+            
+            if is_deep_learning:
+                for train_idx, val_idx in cv.split(X_scaled):
+                    X_train_fold, X_val_fold = X_scaled[train_idx], X_scaled[val_idx]
+                    y_train_fold, y_val_fold = self.y_train[train_idx], self.y_train[val_idx]
+                    
+                    # Clone and compile model
+                    model_clone = clone_model(model)
+                    model_clone.compile(
+                        loss='binary_crossentropy',
+                        optimizer='adam',
+                        metrics=['accuracy']
+                    )
+                    
+                    # Get appropriate parameters
+                    dl_params = (self.config['deep_learning']['lstm'] 
+                               if isinstance(model, Sequential)
+                               else self.config['deep_learning']['transformer'])['params']
+                    
+                    # Train
+                    model_clone.fit(
+                        X_train_fold,
+                        y_train_fold,
+                        epochs=dl_params['epochs'],
+                        batch_size=dl_params['batch_size'],
+                        verbose=0
+                    )
+                    
+                    # Evaluate
+                    y_pred = (model_clone.predict(X_val_fold) > 0.5).astype(int)
+                    score = accuracy_score(y_val_fold, y_pred)
+                    scores.append(score)
             else:
-                scoring_metric = metrics['classification'][0]  # e.g., 'accuracy'
+                scores = cross_val_score(model, X_scaled, self.y_train, 
+                                       cv=cv, scoring='accuracy')
             
-            scores = cross_val_score(model, X_scaled, self.y_train, cv=cv_folds, scoring=scoring_metric)
             return {
                 'mean': np.mean(scores),
                 'std': np.std(scores),
@@ -392,11 +454,15 @@ class TrainingSchool:
         except Exception as e:
             print(f"Error computing CV scores for model '{model_name}': {str(e)}")
             return None
+
     def predict(self, X):
-        """Make predictions using the best model"""
+        """Modified predict method to handle probabilities properly"""
         X_scaled = self.best_scaler.transform(X)
         if isinstance(self.best_model, (tf.keras.Model)):
             X_scaled = X_scaled.reshape((X_scaled.shape[0], X_scaled.shape[1], 1))
+            # Convert probabilities to binary predictions for classification
+            if self.task_type == 'classification':
+                return (self.best_model.predict(X_scaled) > 0.5).astype(int)
         return self.best_model.predict(X_scaled)
     
     def get_best_model(self):

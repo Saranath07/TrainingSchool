@@ -168,7 +168,7 @@ preprocessing:
 
 models:
   <task_type>:
-    <model_name>:
+    <model_name>: # Give a generic name.
       name: <ModelClass>
       params: {{}}
 

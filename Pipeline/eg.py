@@ -11,10 +11,6 @@ from sklearn.model_selection import train_test_split
 import sys
 import numpy as np
 
-
-
-
-
 class IterativeModelTrainer:
     def __init__(self, df, task_description, target_column="target", max_iterations=2):
         self.df = df
@@ -33,7 +29,7 @@ class IterativeModelTrainer:
         ]
         
     def _train_and_evaluate(self, config_yaml, X_train, X_test, y_train, y_test):
-        """Train models and collect performance metrics"""
+        """Train models and collect performance metrics with proper handling of sequential data"""
         with tempfile.NamedTemporaryFile(mode='w+', suffix='.yaml', delete=False) as temp_file:
             temp_file.write(config_yaml)
             temp_file.flush()
@@ -43,47 +39,101 @@ class IterativeModelTrainer:
             
             results = {}
             for model_name, model_info in trainer.models.items():
-                model = model_info['model']
-                scaler = model_info['scaler']
-                
-                # Time the training
-                start_time = time.time()
-                model.fit(scaler.transform(X_train), y_train)
-                training_time = time.time() - start_time
-                
-                # Time the prediction
-                start_time = time.time()
-                y_pred = model.predict(scaler.transform(X_test))
-                prediction_time = time.time() - start_time
-                
-                # Get memory usage
-                memory_usage = sys.getsizeof(model) + sys.getsizeof(scaler)
-                
-                # Collect CV scores
-                cv_scores = trainer.get_cv_scores(model_name)
-                
-                # Get feature importance if available
-                feature_importance = None
-                if hasattr(model, 'feature_importances_'):
-                    feature_importance = dict(zip(
-                        self.df.drop(self.target_column, axis=1).columns,
-                        model.feature_importances_
-                    ))
-                
-                results[model_name] = {
-                    'model_name': model_name,
-                    'y_true': y_test,
-                    'y_pred': y_pred,
-                    'cv_scores': cv_scores,
-                    'training_time': training_time,
-                    'prediction_time': prediction_time,
-                    'memory_usage': memory_usage,
-                    'feature_importance': feature_importance,
-                    'convergence_info': {
-                        'n_iter_': getattr(model, 'n_iter_', None),
-                        'loss_curve_': getattr(model, 'loss_curve_', None)
+                try:
+                    model = model_info['model']
+                    scaler = model_info['scaler']
+                    
+                    # Transform data with scaler
+                    X_train_scaled = scaler.transform(X_train)
+                    X_test_scaled = scaler.transform(X_test)
+                    
+                    # Reshape and adjust data for sequential models if needed
+                    if 'lstm' in model_name.lower() or 'transformer' in model_name.lower():
+                        # Retrieve expected shape from the model
+                        expected_shape = model.input_shape
+                        # Ensure expected_shape is 3D: (batch_size, timesteps, features)
+                        if len(expected_shape) == 3:
+                            _, timesteps, expected_features = expected_shape
+                        else:
+                            # Default to single timestep if shape not defined
+                            timesteps = 1
+                            expected_features = X_train_scaled.shape[1]
+                        
+                        # Get actual feature count
+                        actual_features = X_train_scaled.shape[1]
+                        
+                        # Pad or truncate feature dimensions to match expected features
+                        if actual_features < expected_features:
+                            pad_width = expected_features - actual_features
+                            X_train_scaled = np.pad(X_train_scaled, ((0,0),(0,pad_width)), mode='constant')
+                            X_test_scaled = np.pad(X_test_scaled, ((0,0),(0,pad_width)), mode='constant')
+                        elif actual_features > expected_features:
+                            X_train_scaled = X_train_scaled[:, :expected_features]
+                            X_test_scaled = X_test_scaled[:, :expected_features]
+                        
+                        # Tile along time dimension to create sequences
+                        # This replicates the same feature vector across 'timesteps'
+                        X_train_scaled = np.repeat(X_train_scaled[:, np.newaxis, :], timesteps, axis=1)
+                        X_test_scaled = np.repeat(X_test_scaled[:, np.newaxis, :], timesteps, axis=1)
+                    
+                    # Time the training
+                    start_time = time.time()
+                    if 'lstm' in model_name.lower() or 'transformer' in model_name.lower():
+                        # For deep learning models, assume pre-training has occurred
+                        training_time = model_info.get('training_time', time.time() - start_time)
+                    else:
+                        model.fit(X_train_scaled, y_train)
+                        training_time = time.time() - start_time
+                    
+                    # Time the prediction
+                    start_time = time.time()
+                    y_pred = None
+                    if 'lstm' in model_name.lower() or 'transformer' in model_name.lower():
+                        y_pred = model.predict(X_test_scaled)
+                        # Safely handle prediction outputs
+                        if y_pred is not None:
+                            # Convert probability outputs to class predictions if necessary
+                            if len(y_pred.shape) > 1 and y_pred.shape[1] > 1:
+                                y_pred = np.argmax(y_pred, axis=1)
+                            else:
+                                y_pred = (y_pred > 0.5).astype(int)
+                    else:
+                        y_pred = model.predict(X_test_scaled)
+                    prediction_time = time.time() - start_time
+                    
+                    # Get memory usage
+                    memory_usage = sys.getsizeof(model) + sys.getsizeof(scaler)
+                    
+                    # Get feature importance if available
+                    feature_importance = None
+                    if hasattr(model, 'feature_importances_'):
+                        feature_importance = dict(zip(
+                            self.df.drop(self.target_column, axis=1).columns,
+                            model.feature_importances_
+                        ))
+                    
+                    results[model_name] = {
+                        'model_name': model_name,
+                        'y_true': y_test,
+                        'y_pred': y_pred,
+                        'training_time': training_time,
+                        'prediction_time': prediction_time,
+                        'memory_usage': memory_usage,
+                        'feature_importance': feature_importance,
+                        'convergence_info': {
+                            'n_iter_': getattr(model, 'n_iter_', None),
+                            'loss_curve_': getattr(model, 'loss_curve_', None)
+                        }
                     }
-                }
+                    
+                except Exception as e:
+                    logging.error(f"Error processing model {model_name}: {str(e)}")
+                    results[model_name] = {
+                        'error': str(e),
+                        'model_name': model_name,
+                        'y_true': y_test,
+                        'y_pred': None
+                    }
             
             os.unlink(temp_file.name)
             return results, trainer.get_best_model()
@@ -109,7 +159,6 @@ class IterativeModelTrainer:
         yaml_content = initial_config.strip().strip('`').lstrip('yml').strip()
 
         print(self.task_description)
-
         print(yaml_content)
         
         # First iteration with initial configuration
@@ -159,8 +208,6 @@ class IterativeModelTrainer:
             results, iteration_best = self._train_and_evaluate(
                 current_config, X_train, X_test, y_train, y_test
             )
-
-           
             
             # Generate performance report
             performance_report = self.model_analyzer.generate_performance_report(
@@ -187,9 +234,9 @@ class IterativeModelTrainer:
         
         return all_iterations, best_model_info
 
+# Usage
 df = pd.read_csv("example_data.csv")
-
-task_description = "Using the dataframe I need a binary classification algorithm"
+task_description = "Using the dataframe I need a binary classification algorithm where the data is sequential"
 
 trainer = IterativeModelTrainer(
     df=df,
